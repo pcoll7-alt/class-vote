@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Class Vote — Soto</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink: #111010; --paper: #f4efe6; --cream: #ede8df; --white: #fdfaf5;
+      --film: #b83232; --book: #1e4d8c; --mid: #8a8278; --border: #d8d0c4; --r: 10px;
+    }
+    html, body { height: 100%; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--ink); display: flex; flex-direction: column; align-items: center; padding: 2.5rem 1rem 4rem; min-height: 100dvh; }
+    .view { display: none; width: 100%; max-width: 500px; }
+    .view.active { display: flex; flex-direction: column; align-items: center; }
+    .site-header { text-align: center; margin-bottom: 2rem; }
+    .site-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 9vw, 5.5rem); letter-spacing: 0.04em; line-height: 1; }
+    .site-header p { font-size: 0.9rem; color: var(--mid); margin-top: 0.35rem; }
+    .pd-grid { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; margin-bottom: 1.8rem; width: 100%; }
+    .pd-btn { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.83rem; padding: 0.45rem 1.1rem; border: 2px solid var(--border); border-radius: 999px; background: transparent; color: var(--mid); cursor: pointer; transition: all 0.14s; }
+    .pd-btn:hover { border-color: var(--ink); color: var(--ink); }
+    .pd-btn.active { background: var(--ink); border-color: var(--ink); color: var(--white); }
+    .vote-card { width: 100%; border: 2px solid var(--border); border-radius: var(--r); overflow: hidden; background: var(--white); box-shadow: 0 2px 16px rgba(0,0,0,0.06); }
+    .status-bar { padding: 0.55rem 1.1rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 0.4rem; }
+    .status-bar.open { background: #edf7ed; color: #2e7d32; border-color: #c3e6c3; }
+    .status-bar.closed { background: var(--cream); color: var(--mid); }
+    .status-bar.voted { background: #e8f0fb; color: #1a4fa0; border-color: #c5d8f5; }
+    .status-bar.waiting { background: var(--cream); color: var(--mid); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display: inline-block; animation: blink 1.6s infinite; flex-shrink: 0; }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+    .choices { display: grid; grid-template-columns: 1fr 1fr; }
+    .choice { all: unset; cursor: pointer; padding: 2rem 1rem 1.6rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; transition: background 0.14s; position: relative; }
+    .choice:first-child { border-right: 1px solid var(--border); }
+    .choice:hover:not(:disabled) { background: #f7f3ec; }
+    .choice:disabled { cursor: default; opacity: 0.7; }
+    .choice .icon { font-size: 2.6rem; line-height: 1; }
+    .choice .label { font-family: 'Bebas Neue', sans-serif; font-size: 1.55rem; letter-spacing: 0.04em; }
+    .choice .desc { font-size: 0.75rem; color: var(--mid); text-align: center; line-height: 1.4; }
+    .choice.picked-book { background: #edf3fb; } .choice.picked-film { background: #fdf0ef; }
+    .choice.picked-book .label { color: var(--book); } .choice.picked-film .label { color: var(--film); }
+    .results { padding: 1.1rem 1.2rem 1.4rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.65rem; }
+    .results-heading { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--mid); display: flex; align-items: center; gap: 0.35rem; }
+    .bar-row { display: flex; flex-direction: column; gap: 0.28rem; }
+    .bar-meta { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 500; }
+    .bar-meta .pct { color: var(--mid); font-weight: 400; }
+    .track { height: 9px; background: var(--cream); border-radius: 999px; overflow: hidden; }
+    .fill { height: 100%; border-radius: 999px; transition: width 0.45s cubic-bezier(.4,0,.2,1); }
+    .fill.book { background: var(--book); } .fill.film { background: var(--film); }
+    .total { font-size: 0.72rem; color: var(--mid); text-align: right; margin-top: 0.1rem; }
+    .voted-note { padding: 0.9rem 1.2rem; border-top: 1px solid #c5d8f5; background: #f0f5fd; font-size: 0.83rem; color: #1a4fa0; text-align: center; }
+    #adminView { gap: 1.4rem; }
+    .admin-header { text-align: center; width: 100%; }
+    .admin-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; letter-spacing: 0.05em; color: var(--ink); }
+    .admin-header p { font-size: 0.83rem; color: var(--mid); }
+    .admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.9rem; width: 100%; }
+    .pd-card { background: var(--white); border: 2px solid var(--border); border-radius: var(--r); overflow: hidden; }
+    .pd-card-head { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--border); background: var(--cream); }
+    .pd-card-head .pd-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.04em; }
+    .pill { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 999px; }
+    .pill.open { background: #d4edda; color: #1e5c2a; } .pill.closed { background: var(--cream); color: var(--mid); border: 1px solid var(--border); }
+    .pd-card-body { padding: 0.8rem 0.9rem; }
+    .mini-bars { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.6rem; }
+    .mini-bar-row { display: flex; flex-direction: column; gap: 0.2rem; }
+    .mini-meta { display: flex; justify-content: space-between; font-size: 0.73rem; color: var(--mid); }
+    .mini-track { height: 7px; background: var(--cream); border-radius: 999px; overflow: hidden; }
+    .mini-fill { height: 100%; border-radius: 999px; transition: width 0.45s ease; }
+    .mini-fill.book { background: var(--book); } .mini-fill.film { background: var(--film); }
+    .pd-total { font-size: 0.68rem; color: var(--mid); margin-bottom: 0.7rem; }
+    .pd-actions { display: flex; gap: 0.4rem; }
+    .pd-actions button { flex: 1; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.75rem; padding: 0.45rem 0.4rem; border: none; border-radius: 6px; cursor: pointer; transition: opacity 0.12s; }
+    .pd-actions button:hover { opacity: 0.82; }
+    .btn-open { background: #27ae60; color: #fff; } .btn-close { background: #c9c3bb; color: var(--ink); } .btn-reset { background: #c0392b; color: #fff; }
+    #adminLogin { width: 100%; max-width: 340px; background: var(--white); border: 2px solid var(--border); border-radius: var(--r); padding: 2rem; display: flex; flex-direction: column; gap: 0.9rem; align-self: center; }
+    #adminLogin h2 { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; text-align: center; }
+    #adminLogin input { width: 100%; padding: 0.65rem 0.9rem; border: 2px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 1rem; background: var(--paper); color: var(--ink); outline: none; }
+    #adminLogin input:focus { border-color: var(--ink); }
+    #loginBtn { padding: 0.7rem; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.95rem; background: var(--ink); color: var(--white); border: none; border-radius: 6px; cursor: pointer; }
+    #loginErr { font-size: 0.8rem; color: var(--film); display: none; text-align: center; }
+    .refresh-note { font-size: 0.72rem; color: var(--mid); display: flex; align-items: center; gap: 0.35rem; align-self: flex-end; }
+    .signout-btn { background: none; border: 1px solid var(--border); font-family: 'DM Sans', sans-serif; font-size: 0.78rem; color: var(--mid); padding: 0.35rem 0.9rem; border-radius: 6px; cursor: pointer; align-self: center; }
+    .signout-btn:hover { color: var(--ink); border-color: var(--mid); }
+    .site-footer { margin-top: 2.5rem; font-size: 0.72rem; color: var(--border); text-align: center; }
+    .site-footer a { color: var(--mid); text-decoration: none; }
+    .site-footer a:hover { color: var(--ink); }
+  </style>
+</head>
+<body>
+<div id="studentView" class="view active">
+  <header class="site-header">
+    <h1>What's First?</h1>
+    <p>Vote for today's second activity</p>
+  </header>
+  <div class="pd-grid" id="pdGrid">
+    <button class="pd-btn" data-pd="pd1">Period 1</button>
+    <button class="pd-btn" data-pd="pd2">Period 2</button>
+    <button class="pd-btn" data-pd="pd4">Period 4</button>
+    <button class="pd-btn" data-pd="pd5">Period 5</button>
+    <button class="pd-btn" data-pd="pd7">Period 7</button>
+  </div>
+  <div class="vote-card" id="voteCard">
+    <div class="status-bar waiting" id="statusBar"><span>← Pick your period above</span></div>
+    <div class="choices">
+      <button class="choice" id="btnBook" disabled>
+        <span class="icon">📖</span><span class="label">Read + Write</span>
+        <span class="desc">The Brief &amp; Frightening<br>Reign of Phil</span>
+      </button>
+      <button class="choice" id="btnFilm" disabled>
+        <span class="icon">🎬</span><span class="label">Watch + Write</span>
+        <span class="desc">Judas and the<br>Black Messiah</span>
+      </button>
+    </div>
+    <div class="results">
+      <div class="results-heading"><span class="dot"></span> Live Results</div>
+      <div class="bar-row">
+        <div class="bar-meta"><span>📖 Read + Write</span><span class="pct" id="bookPct">—</span></div>
+        <div class="track"><div class="fill book" id="bookBar" style="width:0%"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-meta"><span>🎬 Watch + Write</span><span class="pct" id="filmPct">—</span></div>
+        <div class="track"><div class="fill film" id="filmBar" style="width:0%"></div></div>
+      </div>
+      <div class="total" id="totalVotes"></div>
+    </div>
+    <div class="voted-note" id="votedNote" style="display:none">✅ Your vote is in — watching results live</div>
+  </div>
+</div>
+<div id="adminView" class="view">
+  <div id="adminLogin">
+    <h2>Teacher Panel</h2>
+    <input type="password" id="pwInput" placeholder="Password" />
+    <div id="loginErr">Wrong password. Try again.</div>
+    <button id="loginBtn">Sign In</button>
+  </div>
+  <div id="adminDash" style="display:none; width:100%; flex-direction:column; gap:1.2rem; align-items:stretch;">
+    <div class="admin-header"><h2>Teacher Panel</h2><p>Open, close, or reset voting for each period</p></div>
+    <div class="refresh-note"><span class="dot" style="color:#27ae60"></span> Auto-refreshes every 5s</div>
+    <div class="admin-grid" id="adminGrid"></div>
+    <button class="signout-btn" id="signoutBtn">Sign out</button>
+  </div>
+</div>
+<footer class="site-footer">Results update every 3s &nbsp;·&nbsp; <a href="#" id="adminLink">Teacher</a></footer>
+<script>
+const PERIODS = ['pd1','pd2','pd4','pd5','pd7'];
+const PERIOD_LABELS = { pd1:'Period 1', pd2:'Period 2', pd4:'Period 4', pd5:'Period 5', pd7:'Period 7' };
+const ADMIN_PASS = 'soto2026';
+let currentPd = null, globalState = null, pollTimer = null, adminTimer = null;
+async function apiGet() { const r = await fetch('/api/votes'); if (!r.ok) throw new Error(`read failed (${r.status})`); return r.json(); }
+async function apiVote(period, choice) { const r = await fetch(`/api/votes?period=${period}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({choice}) }); if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error||`vote failed (${r.status})`); } return r.json(); }
+async function apiAdmin(period, action) { const r = await fetch(`/api/votes?period=${period}`, { method:'PUT', headers:{'Content-Type':'application/json','x-admin-password':ADMIN_PASS}, body:JSON.stringify({action}) }); if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error||`action failed (${r.status})`); } return r.json(); }
+function hasVoted(pd) { return !!localStorage.getItem(`voted_${pd}`); }
+function markVoted(pd) { localStorage.setItem(`voted_${pd}`, '1'); }
+function selectPeriod(pd) { currentPd = pd; document.querySelectorAll('.pd-btn').forEach(b => b.classList.toggle('active', b.dataset.pd === pd)); renderStudentCard(); clearInterval(pollTimer); pollTimer = setInterval(pollStudent, 3000); }
+async function pollStudent() { if (!currentPd) return; try { globalState = await apiGet(); renderStudentCard(); } catch(e) {} }
+function renderStudentCard() {
+  if (!currentPd || !globalState) return;
+  const pd = globalState[currentPd], voted = hasVoted(currentPd);
+  const sb = document.getElementById('statusBar'), btnB = document.getElementById('btnBook'), btnF = document.getElementById('btnFilm');
+  if (voted) { sb.className='status-bar voted'; sb.innerHTML='<span class="dot"></span> Vote recorded'; }
+  else if (pd.open) { sb.className='status-bar open'; sb.innerHTML='<span class="dot"></span> Voting is open — pick one'; }
+  else { sb.className='status-bar closed'; sb.innerHTML='🔒 Voting closed'; }
+  btnB.disabled = btnF.disabled = !(pd.open && !voted);
+  const b=pd.votes.book, f=pd.votes.film, t=b+f, bPct=t>0?Math.round(b/t*100):0, fPct=t>0?Math.round(f/t*100):0;
+  document.getElementById('bookBar').style.width=bPct+'%'; document.getElementById('filmBar').style.width=fPct+'%';
+  document.getElementById('bookPct').textContent=t>0?bPct+'%':'—'; document.getElementById('filmPct').textContent=t>0?fPct+'%':'—';
+  document.getElementById('totalVotes').textContent=t+' vote'+(t===1?'':'s')+' cast';
+  document.getElementById('votedNote').style.display=voted?'block':'none';
+}
+async function castVote(choice) {
+  if (!currentPd||!globalState) return;
+  const pd=globalState[currentPd]; if (!pd.open||hasVoted(currentPd)) return;
+  pd.votes[choice]++; markVoted(currentPd);
+  document.getElementById(choice==='book'?'btnBook':'btnFilm').classList.add(choice==='book'?'picked-book':'picked-film');
+  renderStudentCard();
+  try { const result=await apiVote(currentPd,choice); globalState[currentPd].votes=result.votes; renderStudentCard(); }
+  catch(e) { pd.votes[choice]--; localStorage.removeItem(`voted_${currentPd}`); renderStudentCard(); alert('Vote failed — '+e.message); }
+}
+document.getElementById('btnBook').addEventListener('click', ()=>castVote('book'));
+document.getElementById('btnFilm').addEventListener('click', ()=>castVote('film'));
+document.getElementById('pdGrid').addEventListener('click', e=>{ const b=e.target.closest('.pd-btn'); if(b) selectPeriod(b.dataset.pd); });
+function showView(name) { document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById(name).classList.add('active'); }
+document.getElementById('adminLink').addEventListener('click', e=>{ e.preventDefault(); clearInterval(pollTimer); sessionStorage.getItem('adminOk')==='1'?showAdminDash():showView('adminView'); });
+document.getElementById('loginBtn').addEventListener('click', tryLogin);
+document.getElementById('pwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(); });
+function tryLogin() { const pw=document.getElementById('pwInput').value; if(pw===ADMIN_PASS){ sessionStorage.setItem('adminOk','1'); document.getElementById('loginErr').style.display='none'; showAdminDash(); } else { document.getElementById('loginErr').style.display='block'; } }
+function showAdminDash() { document.getElementById('adminLogin').style.display='none'; const dash=document.getElementById('adminDash'); dash.style.display='flex'; showView('adminView'); buildAdminGrid(); pollAdmin(); clearInterval(adminTimer); adminTimer=setInterval(pollAdmin,5000); }
+function buildAdminGrid() {
+  const grid=document.getElementById('adminGrid'); grid.innerHTML='';
+  for (const pd of PERIODS) { grid.insertAdjacentHTML('beforeend', `<div class="pd-card" id="card-${pd}"><div class="pd-card-head"><span class="pd-name">${PERIOD_LABELS[pd]}</span><span class="pill closed" id="pill-${pd}">Closed</span></div><div class="pd-card-body"><div class="mini-bars"><div class="mini-bar-row"><div class="mini-meta"><span>📖 Read</span><span id="bc-${pd}">0</span></div><div class="mini-track"><div class="mini-fill book" id="bb-${pd}" style="width:0%"></div></div></div><div class="mini-bar-row"><div class="mini-meta"><span>🎬 Watch</span><span id="fc-${pd}">0</span></div><div class="mini-track"><div class="mini-fill film" id="fb-${pd}" style="width:0%"></div></div></div></div><div class="pd-total" id="tot-${pd}">0 votes</div><div class="pd-actions"><button class="btn-open" onclick="adminAction('${pd}','open')">Open</button><button class="btn-close" onclick="adminAction('${pd}','close')">Close</button><button class="btn-reset" onclick="confirmReset('${pd}')">Reset</button></div></div></div>`); }
+}
+async function pollAdmin() { try { globalState=await apiGet(); renderAdminGrid(); } catch(e) {} }
+function renderAdminGrid() {
+  if (!globalState) return;
+  for (const pd of PERIODS) {
+    const s=globalState[pd], b=s.votes.book, f=s.votes.film, t=b+f;
+    const bPct=t>0?Math.round(b/t*100):0, fPct=t>0?Math.round(f/t*100):0;
+    const pill=document.getElementById(`pill-${pd}`); if(pill){pill.textContent=s.open?'Open':'Closed'; pill.className='pill '+(s.open?'open':'closed');}
+    const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+    const setW=(id,w)=>{const el=document.getElementById(id);if(el)el.style.width=w+'%';};
+    set(`bc-${pd}`,b); set(`fc-${pd}`,f); setW(`bb-${pd}`,bPct); setW(`fb-${pd}`,fPct);
+    set(`tot-${pd}`,t+' vote'+(t===1?'':'s'));
+  }
+}
+async function adminAction(pd, action) { try { const result=await apiAdmin(pd,action); globalState[pd]=result.state; renderAdminGrid(); } catch(e) { alert('Action failed: '+e.message); } }
+function confirmReset(pd) { if(confirm(`Reset all votes for ${PERIOD_LABELS[pd]}?`)) adminAction(pd,'reset'); }
+document.getElementById('signoutBtn').addEventListener('click', ()=>{ sessionStorage.removeItem('adminOk'); clearInterval(adminTimer); document.getElementById('adminLogin').style.display='flex'; document.getElementById('adminDash').style.display='none'; document.getElementById('pwInput').value=''; showView('studentView'); });
+(async()=>{ try { globalState=await apiGet(); } catch(e) {} })();
+</script>
+</body>
+</html>
