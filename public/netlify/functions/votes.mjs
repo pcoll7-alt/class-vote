@@ -1,40 +1,32 @@
-import type { Context } from "@netlify/functions";
+
 import { getStore } from "@netlify/blobs";
 
-const PERIODS = ["pd1", "pd2", "pd4", "pd5", "pd7"] as const;
-type Period = typeof PERIODS[number];
-
-interface PeriodState {
-  open: boolean;
-  votes: { book: number; film: number };
-}
-
-type VoteState = Record<Period, PeriodState>;
+const PERIODS = ["pd1", "pd2", "pd4", "pd5", "pd7"];
 
 function getVoteStore() {
   return getStore({ name: "votes", consistency: "strong" });
 }
 
-function defaultState(): VoteState {
-  const s = {} as VoteState;
+function defaultState() {
+  const s = {};
   for (const p of PERIODS) s[p] = { open: false, votes: { book: 0, film: 0 } };
   return s;
 }
 
-async function getState(store: ReturnType<typeof getVoteStore>): Promise<VoteState> {
+async function getState(store) {
   const data = await store.get("state", { type: "json" });
   if (!data) return defaultState();
   for (const p of PERIODS) {
     if (!data[p]) data[p] = { open: false, votes: { book: 0, film: 0 } };
   }
-  return data as VoteState;
+  return data;
 }
 
-export default async (req: Request, _context: Context) => {
+export default async (req) => {
   const store = getVoteStore();
   const url = new URL(req.url);
   const periodParam = url.searchParams.get("period");
-  const period = PERIODS.includes(periodParam as Period) ? (periodParam as Period) : null;
+  const period = PERIODS.includes(periodParam) ? periodParam : null;
 
   if (req.method === "GET") {
     const state = await getState(store);
@@ -53,13 +45,13 @@ export default async (req: Request, _context: Context) => {
     if (!state[period].open) {
       return Response.json({ error: "Voting is closed" }, { status: 403 });
     }
-    state[period].votes[choice as "book" | "film"]++;
+    state[period].votes[choice]++;
     await store.setJSON("state", state);
     return Response.json({ success: true, votes: state[period].votes });
   }
 
   if (req.method === "PUT") {
-    const adminPass = process.env["ADMIN_PASSWORD"] || "soto2026";
+    const adminPass = process.env.ADMIN_PASSWORD || "soto2026";
     const auth = req.headers.get("x-admin-password");
     if (auth !== adminPass) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -84,8 +76,3 @@ export default async (req: Request, _context: Context) => {
 export const config = {
   path: "/api/votes",
 };
-```
-
-Commit that, then do **File 4 of 4** — filename:
-```
-package.json
